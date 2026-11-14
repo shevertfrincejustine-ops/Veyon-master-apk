@@ -1,0 +1,65 @@
+
+name: Veyon Android Build Experiment
+
+on:
+  workflow_dispatch:
+
+jobs:
+  android-diagnostic:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout Veyon 4.11.4
+        uses: actions/checkout@v4
+        with:
+          repository: veyon/veyon
+          ref: v4.11.4
+
+      - name: Show system information
+        run: |
+          echo "=== SYSTEM ==="
+          uname -a
+          df -h /
+
+      - name: Check Android build files
+        run: |
+          echo "=== ANDROID BUILD SCRIPT ==="
+          if [ -f .ci/android.arm64-v8a/build.sh ]; then
+            cat .ci/android.arm64-v8a/build.sh
+          else
+            echo "Android build script not found"
+          fi
+
+          echo "=== ANDROID TOOLCHAIN ==="
+          if [ -f cmake/modules/AndroidToolchain.cmake ]; then
+            cat cmake/modules/AndroidToolchain.cmake
+          else
+            echo "Android toolchain not found"
+          fi
+
+          echo "=== ANDROID DEPLOYMENT ==="
+          find . -iname '*AndroidDeployQt*' -o -name 'build.gradle' -o -name 'AndroidManifest.xml'
+
+      - name: Check Qt requirements
+        run: |
+          echo "=== QT REQUIREMENTS ==="
+          grep -n -E 'WITH_QT6|find_package\(Qt5|find_package\(Qt6|androiddeployqt' CMakeLists.txt
+
+      - name: Save diagnostic report
+        if: always()
+        run: |
+          {
+            echo "Veyon 4.11.4 Android diagnostic"
+            echo "Date: $(date -u)"
+            echo "Commit: $(git rev-parse HEAD)"
+            echo "Android build files:"
+            find . -iname '*Android*' -o -name 'build.gradle'
+          } > android-diagnostic.txt
+
+      - name: Upload diagnostic report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: veyon-android-diagnostic
+          path: android-diagnostic.txt
+          
