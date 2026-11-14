@@ -1,5 +1,5 @@
 
-name: Veyon Android Build Preparation
+name: Veyon Android SDK NDK Setup
 
 on:
   workflow_dispatch:
@@ -15,51 +15,37 @@ jobs:
           repository: veyon/veyon
           ref: v4.11.4
 
-      - name: Install build tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential \
-            cmake \
-            ninja-build \
-            git \
-            wget \
-            unzip \
-            openjdk-8-jdk
-
-      - name: Check Android build requirements
-        run: |
-          echo "=== JAVA ==="
-          java -version
-
-          echo "=== CMAKE ==="
-          cmake --version
-
-          echo "=== ANDROID FILES ==="
-          ls -la .ci/android.arm64-v8a/
-          ls -la android/
-
-          echo "=== TOOLCHAIN ==="
-          cat cmake/modules/AndroidToolchain.cmake
-
-          echo "=== QT REQUIREMENTS ==="
-          grep -n -E 'WITH_QT6|find_package\(Qt5|Qca|OpenSSL' CMakeLists.txt
-
-      - name: Check Android SDK and NDK
-        run: |
-          for path in /opt/android/sdk /opt/android/ndk; do
-            if [ -d "$path" ]; then
-              echo "FOUND: $path"
-            else
-              echo "MISSING: $path"
-            fi
-          done
-
-      - name: Upload preparation report
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Setup Java
+        uses: actions/setup-java@v4
         with:
-          name: veyon-android-preparation
-          path: |
-            CMakeLists.txt
-            
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: ''
+
+      - name: Install Android SDK and NDK
+        run: |
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-29" \
+            "build-tools;29.0.2" \
+            "ndk;21.4.7075529"
+
+      - name: Prepare Veyon Android paths
+        run: |
+          sudo mkdir -p /opt/android
+          sudo ln -sfn "$ANDROID_SDK_ROOT" /opt/android/sdk
+          sudo ln -sfn "$ANDROID_SDK_ROOT/ndk/21.4.7075529" /opt/android/ndk
+
+      - name: Verify Android SDK and NDK
+        run: |
+          echo "=== ANDROID SDK ==="
+          ls -la /opt/android/sdk
+          echo "=== ANDROID NDK ==="
+          ls -la /opt/android/ndk
+          echo "=== NDK VERSION ==="
+          cat /opt/android/ndk/source.properties
+          
